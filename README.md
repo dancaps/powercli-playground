@@ -1,3 +1,3 @@
 ﻿# powercli_playground
 
-My random powershell code.
+My random PowerShell and PowerCLI code.
