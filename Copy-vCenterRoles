@@ -31,11 +31,11 @@ Param
     (
         [parameter(Mandatory=$false)]
         [string]
-        $Source = 'lon2lbvcsvca01.markit.partners',
+        $Source,
 
         [parameter(Mandatory=$false)]
         [string]
-        $Destination = 'lnp6pdvdivca01.markit.partners',
+        $Destination,
 
         [Parameter()]
         [ValidateNotNull()]
