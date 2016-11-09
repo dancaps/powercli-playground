@@ -1,0 +1,169 @@
+############################################################################################################################################
+#.SYNOPSIS
+# Used to create several testing VM's at one time.
+# Version 1.0
+# 
+#.DESCRIPTION
+# This commandlet copies the roles from a source vcenter to a destination vcenter
+#
+#.PARAMETER Source
+# The vCenter where you are retrieving the roles.
+#
+#.PARAMETER Destination
+# The vCenter where you are creating the roles. 
+#
+#.PARAMETER Source_Credential
+# The credential object used to login to the source vCenter
+#
+#.PARAMETER Destination_Credential
+# The credential object used to login to the destination vCenter
+#
+#.EXAMPLE
+# Copy-vCenterRoles -Source vcs-lab01 -Source_Credential $MyCreds01 -Destination vcs-lab02 -Destination_Credential $MyCreds02
+#
+#############################################################################################################################################
+
+Function Global:Copy-vCenterRoles
+{
+
+[CmdletBinding()]
+Param
+    (
+        [parameter(Mandatory=$false)]
+        [string]
+        $Source = 'lon2lbvcsvca01.markit.partners',
+
+        [parameter(Mandatory=$false)]
+        [string]
+        $Destination = 'lnp6pdvdivca01.markit.partners',
+
+        [Parameter()]
+        [ValidateNotNull()]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Source_Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter()]
+        [ValidateNotNull()]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()] 
+        $Destination_Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+# Disconnecting from all the vcenters        
+if ($global:DefaultVIServers){
+    Disconnect-VIServer -Server $global:DefaultVIServers -Confirm:$false
+    }
+
+# Checking the powercli configuration is set to allow multiple connections
+$psconfig = Get-PowerCLIConfiguration -Scope Session
+if ($psconfig -ne 'Multiple'){
+    Set-PowerCLIConfiguration -DefaultVIServerMode multiple -Scope Session -Confirm:$false | Out-Null
+    }
+
+# Connecting to the vcenters
+Write-Output ""
+Write-Output "----------------------------------------------------------------------------"
+Write-Host "Connecting to the following vcenters:" -ForegroundColor Yellow
+Write-Output ""
+
+# Checking to see if a credentials were passed for the source vcenter
+Write-Output "Source vCenter: $Source" 
+if ($Source_Credential -eq [System.Management.Automation.PSCredential]::Empty){
+    Write-Output "Provide credentials for the source vcenter"
+    try {
+        Connect-VIServer -Server $Source -ErrorAction stop | Out-Null
+        }
+    catch {
+        Write-Output "Cannot complete login due to an incorrect user name or password."
+        return
+        }
+    }
+else {
+    try {
+        Connect-VIServer -Server $Source -Credential $Source_Credential -ErrorAction stop | Out-Null
+        }
+    catch {
+        Write-Output "Cannot complete login due to an incorrect user name or password."
+        return
+        }
+    }
+
+Write-Output ""
+
+# Checking to see if a credentials were passed for the destination vcenter
+Write-Output "Destination vCenter: $Destination"
+if ($Destination_Credential -eq [System.Management.Automation.PSCredential]::Empty){
+    Write-Output "Provide credentials for the destination vcenter"
+    try {
+        Connect-VIServer -Server $Destination -ErrorAction stop| Out-Null
+        }
+    catch {
+        Write-Output "Cannot complete login due to an incorrect user name or password."
+        return
+        }
+    }
+else {
+    try {
+        Connect-VIServer -Server $Destination -Credential $Destination_Credential -ErrorAction stop | Out-Null
+        }
+    catch {
+        Write-Output "Cannot complete login due to an incorrect user name or password."
+        return
+        }
+    }
+
+Write-Output ""
+Write-Host "Successfully connected!" -ForegroundColor Green
+Write-Output ""
+
+$source_roles = Get-VIRole -Server $Source | Where-Object {$_.issystem -eq $false}
+
+foreach ($role in $source_roles){
+    Write-Output "----------------------------------------------------------------------------"
+    Write-Host "Migrating Role: $role" -ForegroundColor Yellow
+    Write-Output ""
+    try {
+        Get-VIRole -Name $role.Name -Server $Destination -ErrorAction Stop | Out-Null
+        Write-Output "The role $role already exists on the destination vcenter"
+        Write-Output ""
+        continue
+        }
+    catch {
+        New-VIRole -Name $role.Name -Server $Destination | Out-Null
+        Write-Output "Creating the new role $role on the destination vcenter"
+        Write-Output ""
+        }
+
+    try {
+        [string[]]$privileges = Get-VIPrivilege -Role $role |% {$_.id} -ErrorAction stop
+        }
+    catch {
+        Write-Host "There was a problem getting the privileges. You'll need to manually verify this role" -ForegroundColor Red
+        Write-Output ""
+        continue
+        }
+
+    try {
+        Set-VIRole -Role (Get-VIRole -Name $role.name -Server $Destination) -AddPrivilege (Get-VIPrivilege -Id $privileges -Server $destination -ErrorAction stop) -ErrorAction stop | Out-Null
+        Write-Output "The following privileges have been added to $role"
+        Write-Output $privileges
+        Write-Output ""
+        }
+    catch {
+        Write-Host "There was a problem adding the privileges to $role" -ForegroundColor Red
+        Write-Host "You will need to verify this manually" -ForegroundColor Red
+        Write-Output ""
+        }
+    
+    Write-Output "----------------------------------------------------------------------------"
+    Write-Host "Validating Role: $role" -ForegroundColor Yellow
+    Write-Output ""
+    Write-Output "Number of privileges on the source $role :"
+    Write-Output (Get-VIRole -Server $Source -Name $role.name).PrivilegeList.count
+    Write-Output ""
+    Write-Output "Number of privileges on the destination $role :"
+    Write-Output (Get-VIRole -Server $Destination -Name $role.name).PrivilegeList.count
+    Write-Output ""
+    }
+}
