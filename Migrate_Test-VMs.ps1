@@ -6,11 +6,11 @@ $dest_cluster = "gold-02"
 
 # Variables
 $vms = Get-VMHost $vmhost | Get-VM | Get-View # Gets the vms to be migrated.
-$dest_cluster_hosts = get-cluster $dest_cluster | Get-VMHost | Sort-Object MemoryUsageGB # Gets the cluster where the vms will be migrated.
 $test_failed_vms = @() # Documents the failed vms that will still be migrated.
 $test_passed_vms = @() # Documents the successful vms.
 
 foreach($vm in $vms){
+    $dest_cluster_hosts = get-cluster $dest_cluster | Get-VMHost | Sort-Object MemoryUsageGB # Gets the cluster where the vms will be migrated.
     $dest_vmhost = $dest_cluster_hosts[0] # Grabs the host with the least amount of memory.
     $org_vmhost = Get-VM $vm.Name | Get-VMHost | Select-Object name # Grabs the host the vm is on before the migration.
 
