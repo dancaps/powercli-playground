@@ -1,8 +1,8 @@
 #This script tests the connection of a vm before and after a migration to verify connectivity.
 
 # User variables to modify
-$dest_cluster = "nj4-gold-02"
-$src_cluster = "nj4-gold-01"
+$dest_cluster = "gold-02"
+$src_cluster = "gold-01"
 
 # Variables
 $vms = Get-Cluster $src_cluster | Get-VM | Get-View # Gets the vms to be migrated.
