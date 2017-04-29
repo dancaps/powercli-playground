@@ -1,11 +1,11 @@
 #This script tests the connection of a vm before and after a migration to verify connectivity.
 
 # User variables to modify
-$vmhost = "esx012*"
-$dest_cluster = "gold-02"
+$dest_cluster = "nj4-gold-02"
+$src_cluster = "nj4-gold-01"
 
 # Variables
-$vms = Get-VMHost $vmhost | Get-VM | Get-View # Gets the vms to be migrated.
+$vms = Get-Cluster $src_cluster | Get-VM | Get-View # Gets the vms to be migrated.
 $test_failed_vms = @() # Documents the failed vms that will still be migrated.
 $test_passed_vms = @() # Documents the successful vms.
 
